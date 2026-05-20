@@ -1,7 +1,7 @@
 import time
 from typing import Dict #!!! typing
 from collections import deque
-class SlidingWindowLogLimiter:
+class SlidingWindowLogLimiter(Limiter):
     # user request come in, get the current time
     # clear the request log out of window
     # check the number of remaining request log and use max to minus it

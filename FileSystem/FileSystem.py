@@ -93,6 +93,8 @@ class FileSystem:
         parent.add_child(entry)
 
     def move(self, src_path: str, dest_path: str) -> None:
+        # check path
+        # get the position of src parent
         if src_path == "/":
             raise InvalidPathException("Cannot move root")
 

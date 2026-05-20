@@ -7,7 +7,7 @@ class RateLimiter:
             endpoint = config.get("endpoint", 0)
             if endpoint:
                 self.limiters[endpoint] = limiterFactory.create(config)
-        self._default_limiter = factory.create(default_config)
+        self._default_limiter = limiterFactory.create(default_config)
             
     def allow(self, client_id:str,endpoint:str): # !!! 用client_id而不是key 因为key可能为空
         limiter = self.limiters.get(endpoint, self._default_limiter)

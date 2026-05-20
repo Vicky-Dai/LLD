@@ -6,25 +6,36 @@ class TokenBucketLimiter(Limiter):
     # check the remaining token and add new tokens, min(capacity, remain+new)
     # if tokens > 0, allow request, tokens -= 1
     # else return False
-    def __init__(self, capacity, rate):
-        self.capacity = capacity
-        self.refill_rate_per_second = rate
-        self.buckets:Dict[str, tuple[float, float]] = {}
-        
-    def allow(self, clientID):
-        last_time, current_tokens = self._get_or_create_bucket(clientID)
-        now = time.time()
-        time_elapsed = now - last_time
-        tokens_to_add = time_elapsed*self.refill_rate_per_second
-        current_tokens = min(self.capacity, current_tokens + tokens_to_add)
-        if current_tokens > 0:
-            self.buckets[clientID] = (now, current_tokens - 1)
-            return # result 等会儿补上
-        else:
-            return 
+    def __init__(self, capacity: int, refill_rate_per_second: int):
+        self._capacity = capacity
+        self._refill_rate_per_second = refill_rate_per_second
+        self._buckets: Dict[str, TokenBucket] = {}
 
+    def allow(self, key: str):
+        bucket = self._get_or_create_bucket(key)
+
+        now = int(time.time() * 1000)
+        elapsed = now - bucket.last_refill_time
+        tokens_to_add = (elapsed * self._refill_rate_per_second) / 1000 #！！！tokens是float
+        bucket.tokens = min(self._capacity, bucket.tokens + tokens_to_add)
+        bucket.last_refill_time = now
+
+        if bucket.tokens >= 1:
+            bucket.tokens -= 1
+            remaining = int(bucket.tokens)
+            return RateLimitResult(True, remaining, None)
+
+        tokens_needed = 1 - bucket.tokens # 还差多少个
+        retry_after_ms = int((tokens_needed * 1000) / self._refill_rate_per_second + 0.999)
+        return RateLimitResult(False, 0, retry_after_ms)
 
     def _get_or_create_bucket(self, key: str):
-        if key not in self.buckets:
-            self.buckets[key] = (time.time(), self.capacity)
-        return self.buckets[key]
+        if key not in self._buckets:
+            self._buckets[key] = TokenBucket(self._capacity, int(time.time() * 1000))
+        return self._buckets[key]
+
+
+class TokenBucket:
+    def __init__(self, tokens: float, last_refill_time: int):
+        self.tokens = tokens
+        self.last_refill_time = last_refill_time
